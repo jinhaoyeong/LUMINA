@@ -13,7 +13,8 @@
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nUpdate project with new components, sections, and dependencies\n\n- Modified app files \\(globals.css, layout.tsx, page.tsx\\)\n- Added new components, lib, and sections directories\n- Added Lumina directory\n- Updated package dependencies\n- Added Vercel deployment configuration\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(vercel:*)"
     ]
   }
 }

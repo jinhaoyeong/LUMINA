@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# lumina subdirectory build artifacts
+lumina/node_modules
+lumina/.next
+lumina/out

@@ -80,8 +80,8 @@ export default function Home() {
 
   return (
     <>
-      {!mobile ? <SmoothScroll>{/* Only use smooth scroll on desktop */}</SmoothScroll> : <div className="smooth-scroll-fallback" />}
-      <div className={!mobile ? "smooth-scroll-content" : ""}>
+      {!mobile ? <SmoothScroll /> : null}
+      <div className={!mobile ? "smooth-scroll-content" : "smooth-scroll-fallback"}>
         {/* Simplified background on mobile */}
         <UnifiedBackground mobile={mobile} />
 

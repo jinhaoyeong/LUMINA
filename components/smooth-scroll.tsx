@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useRef } from "react"
 import Lenis from "lenis"
 
-export default function SmoothScroll({ children }: { children: ReactNode }) {
+export default function SmoothScroll({ children = null }: { children?: ReactNode }) {
   const lenisRef = useRef<Lenis | null>(null)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const rafRef = useRef<number | undefined>(undefined)

@@ -35,7 +35,7 @@ const sections = [
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
 
-  const containerVariants = {
+  const containerVariants: any = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -46,7 +46,7 @@ export default function Home() {
     }
   }
 
-  const sectionVariants = {
+  const sectionVariants: any = {
     hidden: { opacity: 0, y: 50 },
     visible: {
       opacity: 1,

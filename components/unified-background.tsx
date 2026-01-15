@@ -2,7 +2,36 @@
 
 import { motion } from "framer-motion"
 
-export default function UnifiedBackground() {
+export default function UnifiedBackground({ mobile = false }: { mobile?: boolean }) {
+  // On mobile, use static gradients for better performance
+  if (mobile) {
+    return (
+      <>
+        <div className="fixed inset-0 bg-[#020102] pointer-events-none" />
+        {/* Static gradients on mobile - no animations */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden">
+          <div
+            className="absolute w-[400px] h-[400px] rounded-full blur-[100px] opacity-20"
+            style={{
+              background: "radial-gradient(circle, rgba(91, 33, 182, 0.3), transparent 70%)",
+              top: "20%",
+              left: "10%",
+            }}
+          />
+          <div
+            className="absolute w-[300px] h-[300px] rounded-full blur-[100px] opacity-15"
+            style={{
+              background: "radial-gradient(circle, rgba(168, 85, 247, 0.25), transparent 70%)",
+              bottom: "20%",
+              right: "10%",
+            }}
+          />
+        </div>
+      </>
+    )
+  }
+
+  // Desktop - full animated experience
   return (
     <>
       {/* Base sophisticated background */}

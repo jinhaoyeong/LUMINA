@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import CustomCursor from "@/components/cursor"
 import SmoothScroll from "@/components/smooth-scroll"
@@ -20,6 +20,12 @@ import About from "@/sections/about"
 import Contact from "@/sections/contact"
 import Footer from "@/sections/footer"
 
+// Detect if device is mobile for performance optimization
+const isMobile = () => {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+}
+
 const sections = [
   { component: Hero, id: "hero" },
   { component: Manifesto, id: "manifesto" },
@@ -34,6 +40,11 @@ const sections = [
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
+  const [mobile, setMobile] = useState(false)
+
+  useEffect(() => {
+    setMobile(isMobile())
+  }, [])
 
   const containerVariants: any = {
     hidden: { opacity: 0 },
@@ -58,47 +69,61 @@ export default function Home() {
     }
   }
 
+  // Disable animations on mobile for better performance
+  const mobileSectionVariants: any = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.3 }
+    }
+  }
+
   return (
-    <SmoothScroll>
-      {/* Top-tier unified background */}
-      <UnifiedBackground />
+    <>
+      {!mobile ? <SmoothScroll>{/* Only use smooth scroll on desktop */}</SmoothScroll> : <div className="smooth-scroll-fallback" />}
+      <div className={!mobile ? "smooth-scroll-content" : ""}>
+        {/* Simplified background on mobile */}
+        <UnifiedBackground mobile={mobile} />
 
-      {/* Premium noise overlay for texture */}
-      <div className="noise-overlay pointer-events-none fixed inset-0 z-50" />
+        {/* Premium noise overlay for texture - skip on mobile */}
+        {!mobile && <div className="noise-overlay pointer-events-none fixed inset-0 z-50" />}
 
-      <CustomCursor />
-      <ScrollProgress />
-      <Navigation />
-      <FloatingCTA />
+        {/* Custom cursor only on desktop */}
+        {!mobile && <CustomCursor />}
 
-      {isLoading && <Loader onComplete={() => setIsLoading(false)} />}
+        <ScrollProgress />
+        <Navigation />
+        <FloatingCTA />
 
-      <motion.main
-        className={`transition-opacity duration-1000 ${isLoading ? "opacity-0" : "opacity-100"}`}
-        initial="hidden"
-        animate={isLoading ? "hidden" : "visible"}
-        variants={containerVariants}
-      >
-        {sections.map((section, index) => {
-          const SectionComponent = section.component
-          const content = <SectionComponent />
+        {isLoading && <Loader onComplete={() => setIsLoading(false)} />}
 
-          return section.skipWrapper ? (
-            <div key={section.id}>{content}</div>
-          ) : (
-            <motion.div
-              key={section.id}
-              variants={sectionVariants}
-              className="snap-section"
-            >
-              {content}
-            </motion.div>
-          )
-        })}
-        <motion.div variants={sectionVariants}>
-          <Footer />
-        </motion.div>
-      </motion.main>
-    </SmoothScroll>
+        <motion.main
+          className={`transition-opacity duration-1000 ${isLoading ? "opacity-0" : "opacity-100"}`}
+          initial="hidden"
+          animate={isLoading ? "hidden" : "visible"}
+          variants={containerVariants}
+        >
+          {sections.map((section, index) => {
+            const SectionComponent = section.component
+            const content = <SectionComponent />
+
+            return section.skipWrapper ? (
+              <div key={section.id}>{content}</div>
+            ) : (
+              <motion.div
+                key={section.id}
+                variants={mobile ? mobileSectionVariants : sectionVariants}
+                className="snap-section"
+              >
+                {content}
+              </motion.div>
+            )
+          })}
+          <motion.div variants={mobile ? mobileSectionVariants : sectionVariants}>
+            <Footer />
+          </motion.div>
+        </motion.main>
+      </div>
+    </>
   )
 }

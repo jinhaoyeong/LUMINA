@@ -73,7 +73,7 @@ export default function Home() {
 
       {isLoading && <Loader onComplete={() => setIsLoading(false)} />}
 
-      <main
+      <motion.main
         className={`transition-opacity duration-1000 ${isLoading ? "opacity-0" : "opacity-100"}`}
         initial="hidden"
         animate={isLoading ? "hidden" : "visible"}
@@ -98,7 +98,7 @@ export default function Home() {
         <motion.div variants={sectionVariants}>
           <Footer />
         </motion.div>
-      </main>
+      </motion.main>
     </SmoothScroll>
   )
 }

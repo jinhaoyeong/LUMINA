@@ -1,9 +1,9 @@
 "use client"
 
+import { memo, useCallback, useEffect, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { useState, useEffect } from "react"
 
-export default function FloatingCTA() {
+function FloatingCTA() {
   const { scrollY } = useScroll()
   const [isVisible, setIsVisible] = useState(false)
 
@@ -28,9 +28,13 @@ export default function FloatingCTA() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" })
-  }
+  const scrollToTop = useCallback(() => {
+    if ((window as any).lenis) {
+      (window as any).lenis.scrollTo(0)
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }, [])
 
   return (
     <>
@@ -43,6 +47,7 @@ export default function FloatingCTA() {
           data-hoverable
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
+          aria-label="Scroll to top"
         >
           ↑
         </motion.button>
@@ -50,3 +55,5 @@ export default function FloatingCTA() {
     </>
   )
 }
+
+export default memo(FloatingCTA)

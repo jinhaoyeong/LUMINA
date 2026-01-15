@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense, memo } from "react"
 import { motion } from "framer-motion"
 import CustomCursor from "@/components/cursor"
 import SmoothScroll from "@/components/smooth-scroll"
@@ -12,13 +12,25 @@ import Loader from "@/components/loader"
 import Hero from "@/sections/hero"
 import Manifesto from "@/sections/manifesto"
 import Marquee from "@/sections/marquee"
-import Gallery from "@/sections/gallery"
-import Services from "@/sections/services"
-import Process from "@/sections/process"
-import Testimonials from "@/sections/testimonials"
-import About from "@/sections/about"
-import Contact from "@/sections/contact"
-import Footer from "@/sections/footer"
+
+// Lazy load heavy sections for better initial load performance
+const Gallery = lazy(() => import("@/sections/gallery"))
+const Services = lazy(() => import("@/sections/services"))
+const Process = lazy(() => import("@/sections/process"))
+const Testimonials = lazy(() => import("@/sections/testimonials"))
+const About = lazy(() => import("@/sections/about"))
+const Contact = lazy(() => import("@/sections/contact"))
+const Footer = lazy(() => import("@/sections/footer"))
+
+// Loading fallback for lazy-loaded components
+const SectionLoader = memo(() => (
+  <div className="min-h-[50vh] flex items-center justify-center">
+    <motion.div
+      className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin"
+    />
+  </div>
+))
+SectionLoader.displayName = "SectionLoader"
 
 // Detect if device is mobile for performance optimization
 const isMobile = () => {
@@ -26,10 +38,15 @@ const isMobile = () => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
 }
 
-const sections = [
+// Regular sections (loaded immediately)
+const regularSections = [
   { component: Hero, id: "hero" },
   { component: Manifesto, id: "manifesto" },
-  { component: Marquee, id: "marquee", skipWrapper: true },
+  { component: Marquee, id: "marquee", skipWrapper: true as const },
+]
+
+// Lazy-loaded sections (loaded on demand)
+const lazySections = [
   { component: Gallery, id: "gallery" },
   { component: Services, id: "services" },
   { component: Process, id: "process" },
@@ -37,6 +54,8 @@ const sections = [
   { component: About, id: "about" },
   { component: Contact, id: "contact" },
 ]
+
+type SectionConfig = typeof lazySections[number]
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
@@ -103,7 +122,8 @@ export default function Home() {
           animate={isLoading ? "hidden" : "visible"}
           variants={containerVariants}
         >
-          {sections.map((section, index) => {
+          {/* Render regular sections immediately */}
+          {regularSections.map((section) => {
             const SectionComponent = section.component
             const content = <SectionComponent />
 
@@ -119,8 +139,36 @@ export default function Home() {
               </motion.div>
             )
           })}
+
+          {/* Render lazy sections with Suspense */}
+          {lazySections.map((section) => {
+            const SectionComponent = section.component
+            const skipWrapper = "skipWrapper" in section && section.skipWrapper
+
+            return skipWrapper ? (
+              <div key={section.id}>
+                <Suspense fallback={<SectionLoader />}>
+                  <SectionComponent />
+                </Suspense>
+              </div>
+            ) : (
+              <motion.div
+                key={section.id}
+                variants={mobile ? mobileSectionVariants : sectionVariants}
+                className="snap-section"
+              >
+                <Suspense fallback={<SectionLoader />}>
+                  <SectionComponent />
+                </Suspense>
+              </motion.div>
+            )
+          })}
+
+          {/* Footer */}
           <motion.div variants={mobile ? mobileSectionVariants : sectionVariants}>
-            <Footer />
+            <Suspense fallback={<SectionLoader />}>
+              <Footer />
+            </Suspense>
           </motion.div>
         </motion.main>
       </div>

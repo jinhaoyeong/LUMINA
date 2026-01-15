@@ -1,30 +1,102 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback, memo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X } from "lucide-react"
-import Lenis from "lenis"
 
+// Memoized nav links array
 const navLinks = [
   { name: "Home", href: "#hero" },
   { name: "Works", href: "#gallery" },
   { name: "Services", href: "#services" },
   { name: "About", href: "#about" },
   { name: "Contact", href: "#contact" },
-]
+] as const
 
-export default function Navigation() {
+// Memoized nav link component
+const NavLink = memo(({
+  link,
+  isActive,
+  onClick,
+}: {
+  link: typeof navLinks[number]
+  isActive: boolean
+  onClick: (href: string) => void
+}) => (
+  <motion.button
+    onClick={() => onClick(link.href)}
+    className={`relative text-sm font-medium transition-colors ${
+      isActive ? "text-white" : "text-white/60 hover:text-white"
+    }`}
+    data-hoverable
+    whileHover={{ y: -2 }}
+    role="menuitem"
+    aria-label={`Navigate to ${link.name} section`}
+    aria-current={isActive ? "true" : undefined}
+  >
+    {link.name}
+    {isActive && (
+      <motion.div
+        layoutId="activeSection"
+        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-violet-400"
+        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        aria-hidden="true"
+      />
+    )}
+  </motion.button>
+))
+NavLink.displayName = "NavLink"
+
+// Memoized mobile nav link component
+const MobileNavLink = memo(({
+  link,
+  isActive,
+  index,
+  onClick,
+}: {
+  link: typeof navLinks[number]
+  isActive: boolean
+  index: number
+  onClick: (href: string) => void
+}) => (
+  <motion.div
+    initial={{ x: -80, opacity: 0, scale: 0.9 }}
+    animate={{ x: 0, opacity: 1, scale: 1 }}
+    exit={{ x: -80, opacity: 0, scale: 0.9 }}
+    transition={{
+      delay: 0.15 + index * 0.08,
+      duration: 0.5,
+      ease: [0.25, 0.1, 0.25, 1]
+    }}
+  >
+    <motion.button
+      onClick={() => onClick(link.href)}
+      className={`text-3xl font-bold text-left w-full block transition-colors relative ${
+        isActive ? "text-violet-400" : "text-white/60 hover:text-white"
+      }`}
+      data-hoverable
+      whileHover={{ x: 10 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      {link.name}
+      <motion.div
+        className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-violet-400 via-pink-400 to-amber-400"
+        initial={{ width: 0 }}
+        whileHover={{ width: "100%" }}
+        transition={{ duration: 0.3 }}
+      />
+    </motion.button>
+  </motion.div>
+))
+MobileNavLink.displayName = "MobileNavLink"
+
+function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState("hero")
-  const lenisRef = useRef<Lenis | null>(null)
 
+  // Memoized scroll handler with RAF (already optimized)
   useEffect(() => {
-    // Get the global Lenis instance
-    if ((window as any).lenis) {
-      lenisRef.current = (window as any).lenis
-    }
-
     let ticking = false
     const handleScroll = () => {
       if (!ticking) {
@@ -55,7 +127,8 @@ export default function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
-  const scrollToSection = (href: string) => {
+  // Memoized scroll to section function
+  const scrollToSection = useCallback((href: string) => {
     const id = href.substring(1) // Remove the # symbol
     const element = document.getElementById(id)
 
@@ -75,7 +148,7 @@ export default function Navigation() {
       }
       setIsOpen(false)
     }
-  }
+  }, [])
 
   return (
     <>
@@ -107,30 +180,12 @@ export default function Navigation() {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-8" role="menubar">
               {navLinks.map((link) => (
-                <motion.button
+                <NavLink
                   key={link.name}
-                  onClick={() => scrollToSection(link.href)}
-                  className={`relative text-sm font-medium transition-colors ${
-                    activeSection === link.href.substring(1)
-                      ? "text-white"
-                      : "text-white/60 hover:text-white"
-                  }`}
-                  data-hoverable
-                  whileHover={{ y: -2 }}
-                  role="menuitem"
-                  aria-label={`Navigate to ${link.name} section`}
-                  aria-current={activeSection === link.href.substring(1) ? "true" : undefined}
-                >
-                  {link.name}
-                  {activeSection === link.href.substring(1) && (
-                    <motion.div
-                      layoutId="activeSection"
-                      className="absolute -bottom-1 left-0 right-0 h-0.5 bg-violet-400"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                      aria-hidden="true"
-                    />
-                  )}
-                </motion.button>
+                  link={link}
+                  isActive={activeSection === link.href.substring(1)}
+                  onClick={scrollToSection}
+                />
               ))}
             </div>
 
@@ -219,37 +274,13 @@ export default function Navigation() {
               <div className="flex-1 flex items-center justify-center px-6">
                 <div className="space-y-6 w-full max-w-sm">
                   {navLinks.map((link, index) => (
-                    <motion.div
+                    <MobileNavLink
                       key={link.name}
-                      initial={{ x: -80, opacity: 0, scale: 0.9 }}
-                      animate={{ x: 0, opacity: 1, scale: 1 }}
-                      exit={{ x: -80, opacity: 0, scale: 0.9 }}
-                      transition={{
-                        delay: 0.15 + index * 0.08,
-                        duration: 0.5,
-                        ease: [0.25, 0.1, 0.25, 1]
-                      }}
-                    >
-                      <motion.button
-                        onClick={() => scrollToSection(link.href)}
-                        className={`text-3xl font-bold text-left w-full block transition-colors relative ${
-                          activeSection === link.href.substring(1)
-                            ? "text-violet-400"
-                            : "text-white/60 hover:text-white"
-                        }`}
-                        data-hoverable
-                        whileHover={{ x: 10 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {link.name}
-                        <motion.div
-                          className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-violet-400 via-pink-400 to-amber-400"
-                          initial={{ width: 0 }}
-                          whileHover={{ width: "100%" }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </motion.button>
-                    </motion.div>
+                      link={link}
+                      isActive={activeSection === link.href.substring(1)}
+                      index={index}
+                      onClick={scrollToSection}
+                    />
                   ))}
                 </div>
               </div>
@@ -278,3 +309,5 @@ export default function Navigation() {
     </>
   )
 }
+
+export default memo(Navigation)

@@ -1,15 +1,76 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback, memo } from "react"
 import { motion, Variants, useScroll, useTransform } from "framer-motion"
 import gsap from "gsap"
 import { scrollToSection } from "@/lib/utils"
 
-export default function Hero() {
+// Memoized gradient orb component
+const GradientOrb = memo(({
+  className,
+  animate,
+  transition,
+}: {
+  className: string
+  animate: any
+  transition: any
+}) => (
+  <motion.div
+    className={className}
+    animate={animate}
+    transition={transition}
+  />
+))
+GradientOrb.displayName = "GradientOrb"
+
+// Memoized corner decoration
+const CornerDecoration = memo(({
+  className,
+  delay,
+}: {
+  className: string
+  delay: number
+}) => (
+  <motion.div
+    className={className}
+    initial={{ scale: 0, opacity: 0 }}
+    animate={{ scale: 1, opacity: 1 }}
+    transition={{ delay, duration: 0.6 }}
+  />
+))
+CornerDecoration.displayName = "CornerDecoration"
+
+function Hero() {
   const sectionRef = useRef<HTMLElement>(null)
   const particlesRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+  const [isVisible, setIsVisible] = useState(true)
+  const [isLowEnd, setIsLowEnd] = useState(false)
+
+  // Detect low-end device
+  useEffect(() => {
+    const cores = navigator.hardwareConcurrency || 4
+    const isLowEndDevice = cores <= 2 || window.innerWidth < 1024
+    setIsLowEnd(isLowEndDevice)
+  }, [])
+
+  // Intersection Observer to pause animations when off-screen
+  useEffect(() => {
+    if (!sectionRef.current) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting)
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(sectionRef.current)
+
+    return () => observer.disconnect()
+  }, [])
+
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end start"],
@@ -17,11 +78,29 @@ export default function Hero() {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0])
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.8])
 
+  // Memoized variants to prevent recreation
+  const wordVariants: Variants = {
+    hidden: { y: 100, opacity: 0 },
+    visible: (i: number) => ({
+      y: 0,
+      opacity: 1,
+      transition: {
+        delay: i * 0.08,
+        type: "spring",
+        stiffness: 50,
+        damping: 15,
+      },
+    }),
+  }
+
   useEffect(() => {
+    if (!isVisible || isLowEnd) return
+
     const ctx = gsap.context(() => {
       if (particlesRef.current) {
         const isMobile = window.innerWidth < 768
-        const particleCount = isMobile ? 30 : 80
+        // Further reduce particles for low-end devices
+        const particleCount = isLowEnd ? 15 : (isMobile ? 30 : 60) // Reduced from 30/80
         const particles: HTMLDivElement[] = []
 
         // Create multiple types of particles
@@ -76,43 +155,52 @@ export default function Hero() {
           })
         }
 
-        // Mouse interaction with particles
+        // Optimized mouse move handler with RAF
+        let rafId: number | null = null
         const handleMouseMove = (e: MouseEvent) => {
-          const rect = sectionRef.current?.getBoundingClientRect()
-          if (!rect) return
+          if (rafId !== null) return
 
-          const x = e.clientX - rect.left
-          const y = e.clientY - rect.top
+          rafId = requestAnimationFrame(() => {
+            const rect = sectionRef.current?.getBoundingClientRect()
+            if (!rect) return
 
-          setMousePos({ x: x / rect.width, y: y / rect.height })
+            const x = e.clientX - rect.left
+            const y = e.clientY - rect.top
 
-          particles.forEach((particle, i) => {
-            const particleX = parseFloat(particle.style.left) / 100 * rect.width
-            const particleY = parseFloat(particle.style.top) / 100 * rect.height
-            const dist = Math.sqrt(Math.pow(x - particleX, 2) + Math.pow(y - particleY, 2))
+            setMousePos({ x: x / rect.width, y: y / rect.height })
 
-            if (dist < 200) {
-              const force = (200 - dist) / 200
-              const angle = Math.atan2(particleY - y, particleX - x)
-              gsap.to(particle, {
-                x: `+=${Math.cos(angle) * force * 100}`,
-                y: `+=${Math.sin(angle) * force * 100}`,
-                duration: 0.5,
-                ease: "power2.out",
-              })
-            }
+            // Only interact with particles close to cursor for performance
+            particles.forEach((particle) => {
+              const particleX = parseFloat(particle.style.left) / 100 * rect.width
+              const particleY = parseFloat(particle.style.top) / 100 * rect.height
+              const dist = Math.sqrt(Math.pow(x - particleX, 2) + Math.pow(y - particleY, 2))
+
+              if (dist < 150) { // Reduced from 200
+                const force = (150 - dist) / 150
+                const angle = Math.atan2(particleY - y, particleX - x)
+                gsap.to(particle, {
+                  x: `+=${Math.cos(angle) * force * 80}`, // Reduced from 100
+                  y: `+=${Math.sin(angle) * force * 80}`,
+                  duration: 0.5,
+                  ease: "power2.out",
+                })
+              }
+            })
+
+            rafId = null
           })
         }
 
-        sectionRef.current?.addEventListener("mousemove", handleMouseMove)
+        sectionRef.current?.addEventListener("mousemove", handleMouseMove, { passive: true })
 
         return () => {
           sectionRef.current?.removeEventListener("mousemove", handleMouseMove)
+          if (rafId !== null) cancelAnimationFrame(rafId)
         }
       }
 
       // Enhanced glitch effect with chromatic aberration
-      if (titleRef.current) {
+      if (titleRef.current && !isLowEnd) {
         const glitchInterval = setInterval(() => {
           if (Math.random() > 0.85) {
             const intensity = Math.random() * 5 + 2
@@ -137,21 +225,7 @@ export default function Hero() {
     }, sectionRef)
 
     return () => ctx.revert()
-  }, [])
-
-  const wordVariants: Variants = {
-    hidden: { y: 100, opacity: 0 },
-    visible: (i: number) => ({
-      y: 0,
-      opacity: 1,
-      transition: {
-        delay: i * 0.08,
-        type: "spring",
-        stiffness: 50,
-        damping: 15,
-      },
-    }),
-  }
+  }, [isVisible, isLowEnd])
 
   return (
     <section
@@ -159,34 +233,38 @@ export default function Hero() {
       ref={sectionRef}
       className="relative min-h-screen flex items-center justify-center overflow-hidden"
     >
-      {/* Animated gradient orbs */}
-      <motion.div
-        className="absolute top-1/4 -left-20 w-96 h-96 rounded-full bg-violet-500/20 blur-[120px]"
-        animate={{
-          x: [0, 100, 0],
-          y: [0, -50, 0],
-          scale: [1, 1.2, 1],
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      <motion.div
-        className="absolute bottom-1/4 -right-20 w-96 h-96 rounded-full bg-pink-500/20 blur-[120px]"
-        animate={{
-          x: [0, -100, 0],
-          y: [0, 50, 0],
-          scale: [1, 1.3, 1],
-        }}
-        transition={{
-          duration: 25,
-          repeat: Infinity,
-          ease: "easeInOut",
-        }}
-      />
-      <motion.div
+      {/* Animated gradient orbs - reduced count on low-end */}
+      {!isLowEnd && (
+        <>
+          <GradientOrb
+            className="absolute top-1/4 -left-20 w-96 h-96 rounded-full bg-violet-500/20 blur-[120px]"
+            animate={{
+              x: [0, 100, 0],
+              y: [0, -50, 0],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+          <GradientOrb
+            className="absolute bottom-1/4 -right-20 w-96 h-96 rounded-full bg-pink-500/20 blur-[120px]"
+            animate={{
+              x: [0, -100, 0],
+              y: [0, 50, 0],
+              scale: [1, 1.3, 1],
+            }}
+            transition={{
+              duration: 25,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+        </>
+      )}
+      <GradientOrb
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-amber-500/10 blur-[150px]"
         animate={{
           scale: [1, 1.1, 1],
@@ -211,8 +289,8 @@ export default function Hero() {
         }}
       />
 
-      {/* Particles container */}
-      <div ref={particlesRef} className="absolute inset-0 pointer-events-none" />
+      {/* Particles container - skip on low-end devices */}
+      {!isLowEnd && <div ref={particlesRef} className="absolute inset-0 pointer-events-none" />}
 
       {/* Content */}
       <motion.div
@@ -335,29 +413,21 @@ export default function Hero() {
       </motion.div>
 
       {/* Decorative corner elements */}
-      <motion.div
+      <CornerDecoration
         className="absolute top-8 left-8 w-20 h-20 border-l-2 border-t-2 border-violet-400/30"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.6 }}
+        delay={1.2}
       />
-      <motion.div
+      <CornerDecoration
         className="absolute top-8 right-8 w-20 h-20 border-r-2 border-t-2 border-pink-400/30"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1.3, duration: 0.6 }}
+        delay={1.3}
       />
-      <motion.div
+      <CornerDecoration
         className="absolute bottom-8 left-8 w-20 h-20 border-l-2 border-b-2 border-amber-400/30"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1.4, duration: 0.6 }}
+        delay={1.4}
       />
-      <motion.div
+      <CornerDecoration
         className="absolute bottom-8 right-8 w-20 h-20 border-r-2 border-b-2 border-cyan-400/30"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1.5, duration: 0.6 }}
+        delay={1.5}
       />
 
       {/* Enhanced scroll indicator */}
@@ -385,3 +455,5 @@ export default function Hero() {
     </section>
   )
 }
+
+export default Hero
